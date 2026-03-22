@@ -1,133 +1,240 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import "./App.css";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"; // backend later
+const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws/chat";
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_DELAY = 2000;
 
 export default function ChatPage() {
-	const [messages, setMessages] = useState([
-		{ from: "bot", text: "Hi, I'm Rishav's AI assistant. Ask me anything about his work." }
-	]);
-	const [input, setInput] = useState("");
-	const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState([
+    {
+      from: "bot",
+      text: "Hi, I'm Rishav's AI assistant. Ask me anything about his work, skills, or experience.",
+      time: new Date(),
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState("connecting");
+  const ws = useRef(null);
+  const reconnectAttempts = useRef(0);
+  const reconnectTimer = useRef(null);
+  const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
 
-	const handleSend = async () => {
-		if (!input.trim()) return;
+  // ── Auto-scroll ──────────────────────────────────────
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+  useEffect(scrollToBottom, [messages, loading]);
 
-		const userMessage = { from: "user", text: input };
-		setMessages(prev => [...prev, userMessage]);
-		setInput("");
-		setLoading(true);
+  // ── WebSocket with reconnect ─────────────────────────
+  const connectWS = useCallback(() => {
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) return;
 
-		try {
-			const res = await fetch(`${API_URL}/chat`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ message: userMessage.text })
-			});
+    setConnectionStatus("connecting");
+    const socket = new WebSocket(WS_URL);
 
-			const data = await res.json();
-			const botMessage = { from: "bot", text: data.answer || "No answer received." };
-			setMessages(prev => [...prev, botMessage]);
-		} catch (err) {
-			setMessages(prev => [
-				...prev,
-				{ from: "bot", text: "Error contacting server. Please try again later." }
-			]);
-		} finally {
-			setLoading(false);
-		}
-	};
+    socket.onopen = () => {
+      setConnectionStatus("connected");
+      reconnectAttempts.current = 0;
+    };
 
-	const handleKeyDown = (e) => {
-		if (e.key === "Enter" && !e.shiftKey) {
-			e.preventDefault();
-			handleSend();
-		}
-	};
+    socket.onmessage = (event) => {
+      let botText = event.data;
+      try {
+        const parsed = JSON.parse(event.data);
+        botText = parsed.answer || parsed.message || parsed.text || parsed;
+      } catch (_) {
+        /* plain text is fine */
+      }
+      setMessages((prev) => [
+        ...prev,
+        { from: "bot", text: botText, time: new Date() },
+      ]);
+      setLoading(false);
+    };
 
-	return (
-		<div style={{
-			height: "100vh",
-			display: "flex",
-			flexDirection: "column",
-			fontFamily: "system-ui, sans-serif",
-			background: "#f3f4f6"
-		}}>
-			<div style={{
-				padding: "12px 16px",
-				background: "#111827",
-				color: "white",
-				fontWeight: 600,
-				fontSize: "14px"
-			}}>
-				Rishav’s AI Chatbot
-			</div>
+    socket.onerror = () => {
+      console.warn("[WS] error event (non-fatal, waiting for onclose)");
+    };
 
-			<div style={{ flex: 1, padding: "12px", overflowY: "auto" }}>
-				{messages.map((m, idx) => (
-					<div
-						key={idx}
-						style={{
-							display: "flex",
-							justifyContent: m.from === "user" ? "flex-end" : "flex-start",
-							marginBottom: "8px"
-						}}
-					>
-						<div
-							style={{
-								maxWidth: "75%",
-								padding: "8px 12px",
-								borderRadius: "12px",
-								fontSize: "14px",
-								background: m.from === "user" ? "#2563eb" : "white",
-								color: m.from === "user" ? "white" : "#111827",
-								boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-							}}
-						>
-							{m.text}
-						</div>
-					</div>
-				))}
-				{loading && (
-					<div style={{ fontSize: "12px", color: "#6b7280" }}>Thinking...</div>
-				)}
-			</div>
+    socket.onclose = () => {
+      setConnectionStatus("disconnected");
+      setLoading(false);
 
-			<div style={{ padding: "12px", borderTop: "1px solid #e5e7eb" }}>
-				<textarea
-					value={input}
-					onChange={e => setInput(e.target.value)}
-					onKeyDown={handleKeyDown}
-					rows={2}
-					placeholder="Ask about Rishav’s skills, projects, experience..."
-					style={{
-						width: "100%",
-						resize: "none",
-						padding: "8px 10px",
-						fontSize: "14px",
-						borderRadius: "8px",
-						border: "1px solid #d1d5db",
-						outline: "none"
-					}}
-				/>
-				<button
-					onClick={handleSend}
-					disabled={loading}
-					style={{
-						marginTop: "8px",
-						width: "100%",
-						padding: "8px",
-						borderRadius: "8px",
-						border: "none",
-						background: "#111827",
-						color: "white",
-						cursor: "pointer",
-						fontWeight: 600,
-						fontSize: "14px"
-					}}
-				>
-					{loading ? "Sending..." : "Send"}
-				</button>
-			</div>
-		</div>
-	);
+      if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
+        reconnectAttempts.current += 1;
+        const delay = RECONNECT_DELAY * reconnectAttempts.current;
+        console.log(`[WS] reconnecting in ${delay}ms (attempt ${reconnectAttempts.current})`);
+        reconnectTimer.current = setTimeout(connectWS, delay);
+      }
+    };
+
+    ws.current = socket;
+  }, []);
+
+  useEffect(() => {
+    connectWS();
+    return () => {
+      clearTimeout(reconnectTimer.current);
+      if (ws.current) ws.current.close();
+    };
+  }, [connectWS]);
+
+  // ── Send ─────────────────────────────────────────────
+  const handleSend = () => {
+    const trimmed = input.trim();
+    if (!trimmed || loading) return;
+
+    setMessages((prev) => [
+      ...prev,
+      { from: "user", text: trimmed, time: new Date() },
+    ]);
+    setInput("");
+    setLoading(true);
+
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({ message: trimmed }));
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        {
+          from: "bot",
+          text: "Connection lost. Trying to reconnect…",
+          time: new Date(),
+          isError: true,
+        },
+      ]);
+      setLoading(false);
+      connectWS();
+    }
+
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  // ── Time formatter ───────────────────────────────────
+  const formatTime = (d) =>
+    d
+      ? new Date(d).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "";
+
+  // ─────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────
+  return (
+    <div className="chat-page">
+      <div className="bg-orb-1" />
+      <div className="bg-orb-2" />
+
+      <div className="chat-card">
+        {/* Header */}
+        <div className="chat-header">
+          <div className="header-left">
+            <div className="header-avatar">R</div>
+            <div>
+              <div className="header-title">Rishav's AI</div>
+              <div className="header-sub">
+                <span className={`status-dot status-dot--${connectionStatus}`} />
+                {connectionStatus === "connected"
+                  ? "Online"
+                  : connectionStatus === "connecting"
+                  ? "Connecting…"
+                  : "Offline – reconnecting…"}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="chat-messages">
+          {messages.map((m, idx) => {
+            const isUser = m.from === "user";
+            return (
+              <div
+                key={idx}
+                className={`msg-row ${isUser ? "msg-row--user" : "msg-row--bot"}`}
+              >
+                {!isUser && <div className="bot-icon">✦</div>}
+                <div
+                  className={`bubble ${isUser ? "bubble--user" : "bubble--bot"} ${
+                    m.isError ? "bubble--error" : ""
+                  }`}
+                >
+                  <span className="bubble-text">{m.text}</span>
+                  <span
+                    className={`bubble-time ${
+                      isUser ? "bubble-time--user" : "bubble-time--bot"
+                    }`}
+                  >
+                    {formatTime(m.time)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+
+          {loading && (
+            <div className="msg-row msg-row--bot">
+              <div className="bot-icon">✦</div>
+              <div className="bubble bubble--bot">
+                <span className="typing-dots">
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div className="chat-input-bar">
+          <textarea
+            ref={textareaRef}
+            className="chat-textarea"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            rows={1}
+            placeholder="Ask about skills, projects, experience…"
+          />
+          <button
+            className="send-btn"
+            onClick={handleSend}
+            disabled={loading || !input.trim()}
+          >
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M22 2L11 13"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M22 2L15 22L11 13L2 9L22 2Z"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
