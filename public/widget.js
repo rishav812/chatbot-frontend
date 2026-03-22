@@ -14,13 +14,18 @@
 
   var iframe = document.createElement("iframe");
   iframe.src = CHAT_URL;
-  iframe.style.width = "602px";
-  iframe.style.height = "70vh";
+  iframe.style.width = "400px";
+  iframe.style.maxWidth = "calc(100vw - 40px)";
+  iframe.style.height = "600px";
+  iframe.style.maxHeight = "calc(100vh - 100px)";
   iframe.style.border = "none";
   iframe.style.borderRadius = "12px";
-  iframe.style.boxShadow = "0 0 20px rgba(0,0,0,0.15)";
+  iframe.style.boxShadow = "0 8px 32px rgba(0,0,0,0.15)";
   iframe.style.display = "none";
   iframe.style.background = "white";
+  iframe.style.position = "absolute";
+  iframe.style.bottom = "60px";
+  iframe.style.right = "0px";
 
   var button = document.createElement("button");
   button.innerText = "Chat with Rishav";
