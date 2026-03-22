@@ -134,9 +134,6 @@ export default function ChatPage() {
   // ─────────────────────────────────────────────────────
   return (
     <div className="chat-page">
-      <div className="bg-orb-1" />
-      <div className="bg-orb-2" />
-
       <div className="chat-card">
         {/* Header */}
         <div className="chat-header">
@@ -165,7 +162,11 @@ export default function ChatPage() {
                 key={idx}
                 className={`msg-row ${isUser ? "msg-row--user" : "msg-row--bot"}`}
               >
-                {!isUser && <div className="bot-icon">✦</div>}
+                {!isUser && <div className="bot-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" fill="currentColor"/>
+                  </svg>
+                </div>}
                 <div
                   className={`bubble ${isUser ? "bubble--user" : "bubble--bot"} ${
                     m.isError ? "bubble--error" : ""
@@ -186,7 +187,11 @@ export default function ChatPage() {
 
           {loading && (
             <div className="msg-row msg-row--bot">
-              <div className="bot-icon">✦</div>
+              <div className="bot-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" fill="currentColor"/>
+                  </svg>
+              </div>
               <div className="bubble bubble--bot">
                 <span className="typing-dots">
                   <span className="typing-dot" />
@@ -209,7 +214,7 @@ export default function ChatPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             rows={1}
-            placeholder="Ask about skills, projects, experience…"
+            placeholder="Ask about skills, projects..."
           />
           <button
             className="send-btn"
@@ -219,14 +224,14 @@ export default function ChatPage() {
             <svg viewBox="0 0 24 24" fill="none">
               <path
                 d="M22 2L11 13"
-                stroke="white"
+                stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
               <path
                 d="M22 2L15 22L11 13L2 9L22 2Z"
-                stroke="white"
+                stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
