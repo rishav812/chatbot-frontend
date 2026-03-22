@@ -16,7 +16,7 @@
 /* ── Card container ─────────────────────────────────── */
 .chat-card {
   width: 602px;
-  height: 90vh;
+  height: 70vh;
   display: flex;
   flex-direction: column;
   border-radius: 16px;

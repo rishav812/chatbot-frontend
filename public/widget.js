@@ -1,6 +1,5 @@
 (function () {
   // During local dev use localhost; after deploy, change this to your Vercel URL
-//   var CHAT_URL = "http://localhost:5173";
    var CHAT_URL = "https://chatbot-frontend-rishav.vercel.app";
 
   if (window.__RISHAV_CHATBOT_WIDGET_LOADED__) return;
@@ -15,8 +14,8 @@
 
   var iframe = document.createElement("iframe");
   iframe.src = CHAT_URL;
-  iframe.style.width = "400px";
-  iframe.style.height = "500px";
+  iframe.style.width = "602px";
+  iframe.style.height = "70vh";
   iframe.style.border = "none";
   iframe.style.borderRadius = "12px";
   iframe.style.boxShadow = "0 0 20px rgba(0,0,0,0.15)";
