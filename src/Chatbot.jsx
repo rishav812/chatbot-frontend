@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import "./App.css";
 
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws/chat";
+// const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws/chat";
+const WS_URL = import.meta.env.VITE_WS_URL || "wss://rishav-chatbot.duckdns.org/ws/chat";
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 2000;
 
